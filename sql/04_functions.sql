@@ -67,22 +67,16 @@ RETURNS BOOLEAN
 DETERMINISTIC
 READS SQL DATA
 BEGIN
-    DECLARE v_is_available BOOLEAN DEFAULT FALSE;
-    DECLARE v_status VARCHAR(20);
+    DECLARE v_count INT DEFAULT 0;
     
-    -- Get equipment status
-    SELECT Status INTO v_status
+    -- Count equipment with this ID that is Available
+    SELECT COUNT(*) INTO v_count
     FROM Equipment
-    WHERE EquipmentID = p_equipment_id;
+    WHERE EquipmentID = p_equipment_id
+    AND Status = 'Available';
     
-    -- Equipment is available if status is 'Available'
-    IF v_status = 'Available' THEN
-        SET v_is_available = TRUE;
-    ELSE
-        SET v_is_available = FALSE;
-    END IF;
-    
-    RETURN v_is_available;
+    -- Return TRUE if count > 0, FALSE otherwise
+    RETURN v_count > 0;
 END$$
 
 -- ----------------------------------------------------------------------------
