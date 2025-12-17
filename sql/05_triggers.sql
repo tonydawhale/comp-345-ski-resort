@@ -119,11 +119,6 @@ BEGIN
             WHERE RentalID = NEW.RentalID
         );
         
-        -- Optional: Auto-update status to 'Returned' if not already set
-        IF NEW.RentalStatus != 'Returned' THEN
-             UPDATE Rentals SET RentalStatus = 'Returned' WHERE RentalID = NEW.RentalID;
-        END IF;
-
     END IF;
 END$$
 
