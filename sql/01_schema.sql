@@ -42,7 +42,7 @@ CREATE TABLE Instructors (
 
 -- 5. Scheduled Lessons
 CREATE TABLE Scheduled_Lessons (
-    EnrollmentID INT PRIMARY KEY AUTO_INCREMENT,
+    LessonID INT PRIMARY KEY AUTO_INCREMENT,
     InstructorID INT,
     StartTime TIMESTAMP NOT NULL,
     MaxCapacity INT DEFAULT 10 CHECK (MaxCapacity > 0),
@@ -70,7 +70,6 @@ CREATE TABLE Equipment (
 CREATE TABLE Rentals (
     RentalID INT PRIMARY KEY AUTO_INCREMENT,
     CustomerID INT NOT NULL,
-    EquipmentID INT NOT NULL,
     RentalDate DATETIME DEFAULT CURRENT_TIMESTAMP,
     ReturnDate DATETIME,
     TotalPrice DECIMAL(10,2) CHECK (TotalPrice >= 0),
@@ -86,3 +85,35 @@ CREATE TABLE Rental_Items (
     FOREIGN KEY (RentalID) REFERENCES Rentals(RentalID),
     FOREIGN KEY (EquipmentID) REFERENCES Equipment(EquipmentID)
 )
+
+-- 10. Lifts (Infrastructure)
+CREATE TABLE Lifts (
+    LiftID INT PRIMARY KEY AUTO_INCREMENT,
+    LiftName VARCHAR(50) NOT NULL,
+    Capacity INT CHECK (Capacity BETWEEN 1 AND 10),
+    Status ENUM('Operational', 'Hold', 'Maitenance', 'Closed') NOT NULL DEFAULT 'Closed',
+    ElevationGain INT CHECK (ElevationGain >= 0)
+);
+
+-- 11. Trails (Infrastructure)
+CREATE TABLE Trails (
+    TrailID INT PRIMARY KEY AUTO_INCREMENT,
+    TrailName VARCHAR(50) NOT NULL UNIQUE,
+    Difficulty ENUM('Green', 'Blue', 'Black', 'Double Black') NOT NULL,
+    IsGroomed BOOLEAN NOT NULL DEFAULT FALSE,
+    ServiceByLiftID INT,
+    FOREIGN KEY (ServiceByLiftID) REFERENCES Lifts(LiftID)
+);
+
+-- 12. Maintenance Logs
+CREATE TABLE Maintenance_Logs (
+    LogID INT PRIMARY KEY AUTO_INCREMENT,
+    LiftID INT NOT NULL,
+    ReportedDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+    Description TEXT NOT NULL,
+    Priority ENUM('Low', 'Medium', 'High') NOT NULL,
+    ResolvedDate DATETIME,
+    TechnicianName VARCHAR(100),
+    FOREIGN KEY (LiftID) REFERENCES Lifts(LiftID),
+    CONSTRAINT chk_resolution CHECK (ResolvedDate >= ReportedDate)
+);
