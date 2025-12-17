@@ -283,7 +283,13 @@ WITH monthly_rentals AS (
     JOIN Rental_Items ri ON r.RentalID = ri.RentalID
     JOIN Equipment e ON ri.EquipmentID = e.EquipmentID
     WHERE r.RentalStatus IN ('Active', 'Returned')
-    GROUP BY e.EquipmentType, MONTH(r.RentalDate)
+    GROUP BY e.EquipmentType, MONTH(r.RentalDate),
+             CASE 
+                 WHEN MONTH(r.RentalDate) IN (12, 1, 2) THEN 'Winter'
+                 WHEN MONTH(r.RentalDate) IN (3, 4, 5) THEN 'Spring'
+                 WHEN MONTH(r.RentalDate) IN (6, 7, 8) THEN 'Summer'
+                 ELSE 'Fall'
+             END
 )
 SELECT 
     EquipmentType,
