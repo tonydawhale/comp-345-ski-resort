@@ -1,119 +1,229 @@
+-- ============================================================================
+-- Ski Resort Management System - Database Schema
+-- COMP 345 Final Project
+-- DBMS: MySQL 8.0+
+-- ============================================================================
+
 DROP DATABASE IF EXISTS ski_resort;
-CREATE DATABASE ski_resort CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE DATABASE ski_resort CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE ski_resort;
 
--- 1. Customers Table
+-- ============================================================================
+-- CORE ENTITIES
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- 1. Customers: People who purchase passes, rent equipment, or take lessons
+-- ----------------------------------------------------------------------------
 CREATE TABLE Customers (
     CustomerID INT PRIMARY KEY AUTO_INCREMENT,
     FirstName VARCHAR(50) NOT NULL,
     LastName VARCHAR(50) NOT NULL,
     Email VARCHAR(100) UNIQUE NOT NULL,
+    Phone VARCHAR(20),
     DOB DATE NOT NULL,
-    CONSTRAINT chk_dob_range CHECK (DOB < '2022-01-01') -- Customers must be older than 3 years as of 2025
-);
+    Address VARCHAR(255),
+    City VARCHAR(100),
+    StateProvince VARCHAR(50),
+    PostalCode VARCHAR(20),
+    Country VARCHAR(50) DEFAULT 'USA',
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT chk_dob_range CHECK (DOB < '2022-01-01'), -- Customers must be older than 3 years as of 2025
+    CONSTRAINT chk_email_format CHECK (Email LIKE '%@%.%')
+) ENGINE=InnoDB;
 
--- 2. Pass Types (Catalog)
+-- ----------------------------------------------------------------------------
+-- 2. Pass Types: Catalog of available pass types (Day Pass, Season Pass, etc.)
+-- ----------------------------------------------------------------------------
 CREATE TABLE Pass_Types (
     PassTypeID INT PRIMARY KEY AUTO_INCREMENT,
-    PassName VARCHAR(50) NOT NULL,
-    CurrentPrice DECIMAL(10,2) CHECK (CurrentPrice >= 0),
+    PassName VARCHAR(50) NOT NULL UNIQUE,
+    PassDescription TEXT,
+    CurrentPrice DECIMAL(10,2) NOT NULL,
     AgeGroup ENUM('Child', 'Adult', 'Senior') NOT NULL,
-);
+    DurationDays INT DEFAULT 1 CHECK (DurationDays > 0),
+    IsSeasonPass BOOLEAN DEFAULT FALSE,
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT chk_pass_price CHECK (CurrentPrice >= 0)
+) ENGINE=InnoDB;
 
--- 3. Lift Tickets (Transactions)
+-- ----------------------------------------------------------------------------
+-- 3. Lift Tickets: Individual ticket purchases/transactions
+-- ----------------------------------------------------------------------------
 CREATE TABLE Lift_Tickets (
     TicketID INT PRIMARY KEY AUTO_INCREMENT,
-    CustomerID INT,
-    PassTypeID INT,
+    CustomerID INT NOT NULL,
+    PassTypeID INT NOT NULL,
     PurchaseDate DATETIME DEFAULT CURRENT_TIMESTAMP,
     ValidDate DATE NOT NULL,
-    SalePrice DECIMAL(10,2) CHECK (SalePrice >= 0),
-    FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID),
-    FOREIGN KEY (PassTypeID) REFERENCES Pass_Types(PassTypeID)
-);
+    ExpirationDate DATE,
+    SalePrice DECIMAL(10,2) NOT NULL,
+    TicketStatus ENUM('Active', 'Used', 'Expired', 'Cancelled') DEFAULT 'Active',
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_ticket_price CHECK (SalePrice >= 0),
+    CONSTRAINT chk_valid_date CHECK (ValidDate >= DATE(PurchaseDate)),
+    FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID) 
+        ON DELETE RESTRICT ON UPDATE CASCADE,
+    FOREIGN KEY (PassTypeID) REFERENCES Pass_Types(PassTypeID) 
+        ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB;
 
--- 4. Instructors
+-- ----------------------------------------------------------------------------
+-- 4. Instructors: Ski and snowboard instructors
+-- ----------------------------------------------------------------------------
 CREATE TABLE Instructors (
     InstructorID INT PRIMARY KEY AUTO_INCREMENT,
     FirstName VARCHAR(50) NOT NULL,
     LastName VARCHAR(50) NOT NULL,
-    Specialty ENUM('Skiing', 'Snowboarding') NOT NULL
-);
+    Email VARCHAR(100) UNIQUE,
+    Phone VARCHAR(20),
+    Specialty ENUM('Skiing', 'Snowboarding', 'Both') NOT NULL,
+    CertificationLevel ENUM('Level 1', 'Level 2', 'Level 3', 'Certified') DEFAULT 'Level 1',
+    HireDate DATE,
+    IsActive BOOLEAN DEFAULT TRUE,
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
 
--- 5. Scheduled Lessons
+-- ----------------------------------------------------------------------------
+-- 5. Scheduled Lessons: Lessons scheduled by instructors
+-- ----------------------------------------------------------------------------
 CREATE TABLE Scheduled_Lessons (
     LessonID INT PRIMARY KEY AUTO_INCREMENT,
-    InstructorID INT,
+    InstructorID INT NOT NULL,
+    LessonName VARCHAR(100),
     StartTime TIMESTAMP NOT NULL,
+    EndTime TIMESTAMP,
     MaxCapacity INT DEFAULT 10 CHECK (MaxCapacity > 0),
-    FOREIGN KEY (InstructorID) REFERENCES Instructors(InstructorID)
-);
+    CurrentEnrollment INT DEFAULT 0 CHECK (CurrentEnrollment >= 0),
+    LessonType ENUM('Group', 'Private', 'Semi-Private') DEFAULT 'Group',
+    LessonStatus ENUM('Scheduled', 'In Progress', 'Completed', 'Cancelled') DEFAULT 'Scheduled',
+    Price DECIMAL(10,2) DEFAULT 0.00 CHECK (Price >= 0),
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT chk_enrollment_capacity CHECK (CurrentEnrollment <= MaxCapacity),
+    CONSTRAINT chk_lesson_times CHECK (EndTime IS NULL OR EndTime > StartTime),
+    FOREIGN KEY (InstructorID) REFERENCES Instructors(InstructorID) 
+        ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB;
 
--- 6. Lesson Enrollments
+-- ----------------------------------------------------------------------------
+-- 6. Lesson Enrollments: Bridge table linking customers to scheduled lessons
+-- ----------------------------------------------------------------------------
 CREATE TABLE Enrollments (
     EnrollmentID INT PRIMARY KEY AUTO_INCREMENT,
     CustomerID INT NOT NULL,
     LessonID INT NOT NULL,
-    PaymentStatus ENUM('Paid', 'Pending', 'Cancelled') NOT NULL DEFAULT 'Pending',
-    FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID),
-    FOREIGN KEY (LessonID) REFERENCES Scheduled_Lessons(LessonID)
-);
+    EnrollmentDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PaymentStatus ENUM('Paid', 'Pending', 'Cancelled', 'Refunded') NOT NULL DEFAULT 'Pending',
+    PaymentAmount DECIMAL(10,2) DEFAULT 0.00 CHECK (PaymentAmount >= 0),
+    Notes TEXT,
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_customer_lesson UNIQUE (CustomerID, LessonID),
+    FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID) 
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (LessonID) REFERENCES Scheduled_Lessons(LessonID) 
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
 
--- 7. Equipment Inventory
+-- ----------------------------------------------------------------------------
+-- 7. Equipment: Inventory of rental equipment
+-- ----------------------------------------------------------------------------
 CREATE TABLE Equipment (
     EquipmentID INT PRIMARY KEY AUTO_INCREMENT,
-    EquipmentType ENUM('Ski', 'Snowboard', 'Boots', 'Poles') NOT NULL,
-    Status ENUM('Available', 'Rented', 'Maintenance') NOT NULL DEFAULT 'Available'
-);
+    EquipmentType ENUM('Ski', 'Snowboard', 'Boots', 'Poles', 'Helmet', 'Goggles') NOT NULL,
+    Brand VARCHAR(50),
+    Model VARCHAR(50),
+    Size VARCHAR(20),
+    Status ENUM('Available', 'Rented', 'Maintenance', 'Retired') NOT NULL DEFAULT 'Available',
+    PurchaseDate DATE,
+    LastMaintenanceDate DATE,
+    NextMaintenanceDate DATE,
+    ConditionNotes TEXT,
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
 
--- 8. Rental Transactions
+-- ----------------------------------------------------------------------------
+-- 8. Rentals: Rental transactions linking customers to equipment
+-- ----------------------------------------------------------------------------
 CREATE TABLE Rentals (
     RentalID INT PRIMARY KEY AUTO_INCREMENT,
     CustomerID INT NOT NULL,
-    RentalDate DATETIME DEFAULT CURRENT_TIMESTAMP,
-    ReturnDate DATETIME,
-    TotalPrice DECIMAL(10,2) CHECK (TotalPrice >= 0),
-    FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID),
-    FOREIGN KEY (EquipmentID) REFERENCES Equipment(EquipmentID)
-);
+    RentalDate DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    ExpectedReturnDate DATETIME,
+    ActualReturnDate DATETIME,
+    TotalPrice DECIMAL(10,2) NOT NULL CHECK (TotalPrice >= 0),
+    RentalStatus ENUM('Active', 'Returned', 'Overdue', 'Lost') DEFAULT 'Active',
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT chk_return_dates CHECK (ExpectedReturnDate IS NULL OR ExpectedReturnDate >= RentalDate),
+    FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID) 
+        ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB;
 
--- 9. Rental Items
+-- ----------------------------------------------------------------------------
+-- 9. Rental Items: Bridge table linking rentals to specific equipment items
+-- Many-to-Many: Rentals ↔ Equipment
+-- ----------------------------------------------------------------------------
 CREATE TABLE Rental_Items (
     RentalItemID INT PRIMARY KEY AUTO_INCREMENT,
     RentalID INT NOT NULL,
     EquipmentID INT NOT NULL,
-    FOREIGN KEY (RentalID) REFERENCES Rentals(RentalID),
-    FOREIGN KEY (EquipmentID) REFERENCES Equipment(EquipmentID)
-)
+    Quantity INT DEFAULT 1 CHECK (Quantity > 0),
+    UnitPrice DECIMAL(10,2) NOT NULL CHECK (UnitPrice >= 0),
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_rental_equipment UNIQUE (RentalID, EquipmentID),
+    FOREIGN KEY (RentalID) REFERENCES Rentals(RentalID) 
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (EquipmentID) REFERENCES Equipment(EquipmentID) 
+        ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB;
 
--- 10. Lifts (Infrastructure)
-CREATE TABLE Lifts (
-    LiftID INT PRIMARY KEY AUTO_INCREMENT,
-    LiftName VARCHAR(50) NOT NULL,
-    Capacity INT CHECK (Capacity BETWEEN 1 AND 10),
-    Status ENUM('Operational', 'Hold', 'Maitenance', 'Closed') NOT NULL DEFAULT 'Closed',
-    ElevationGain INT CHECK (ElevationGain >= 0)
-);
-
--- 11. Trails (Infrastructure)
+-- ----------------------------------------------------------------------------
+-- 10. Trails: Ski trails/runs at the resort
+-- ----------------------------------------------------------------------------
 CREATE TABLE Trails (
     TrailID INT PRIMARY KEY AUTO_INCREMENT,
-    TrailName VARCHAR(50) NOT NULL UNIQUE,
-    Difficulty ENUM('Green', 'Blue', 'Black', 'Double Black') NOT NULL,
-    IsGroomed BOOLEAN NOT NULL DEFAULT FALSE,
-    ServiceByLiftID INT,
-    FOREIGN KEY (ServiceByLiftID) REFERENCES Lifts(LiftID)
-);
+    TrailName VARCHAR(100) NOT NULL,
+    Difficulty ENUM('Beginner', 'Intermediate', 'Advanced', 'Expert') NOT NULL,
+    LengthMeters DECIMAL(10,2) CHECK (LengthMeters > 0),
+    ElevationDropMeters DECIMAL(10,2) CHECK (ElevationDropMeters >= 0),
+    IsOpen BOOLEAN DEFAULT TRUE,
+    ConditionsNotes TEXT,
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
 
--- 12. Maintenance Logs
-CREATE TABLE Maintenance_Logs (
-    LogID INT PRIMARY KEY AUTO_INCREMENT,
+-- ----------------------------------------------------------------------------
+-- 11. Lifts: Chairlifts and gondolas
+-- ----------------------------------------------------------------------------
+CREATE TABLE Lifts (
+    LiftID INT PRIMARY KEY AUTO_INCREMENT,
+    LiftName VARCHAR(100) NOT NULL UNIQUE,
+    LiftType ENUM('Chairlift', 'Gondola', 'Magic Carpet', 'T-Bar') NOT NULL,
+    Capacity INT CHECK (Capacity > 0),
+    IsOpen BOOLEAN DEFAULT TRUE,
+    OperatingHours VARCHAR(50),
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- ----------------------------------------------------------------------------
+-- 12. Lift Access: Bridge table linking lifts to trails (which lifts access which trails)
+-- Many-to-Many: Lifts ↔ Trails
+-- ----------------------------------------------------------------------------
+CREATE TABLE Lift_Access (
+    AccessID INT PRIMARY KEY AUTO_INCREMENT,
     LiftID INT NOT NULL,
-    ReportedDate DATETIME DEFAULT CURRENT_TIMESTAMP,
-    Description TEXT NOT NULL,
-    Priority ENUM('Low', 'Medium', 'High') NOT NULL,
-    ResolvedDate DATETIME,
-    TechnicianName VARCHAR(100),
-    FOREIGN KEY (LiftID) REFERENCES Lifts(LiftID),
-    CONSTRAINT chk_resolution CHECK (ResolvedDate >= ReportedDate)
-);
+    TrailID INT NOT NULL,
+    AccessType ENUM('Direct', 'Indirect') DEFAULT 'Direct',
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_lift_trail UNIQUE (LiftID, TrailID),
+    FOREIGN KEY (LiftID) REFERENCES Lifts(LiftID) 
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (TrailID) REFERENCES Trails(TrailID) 
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
