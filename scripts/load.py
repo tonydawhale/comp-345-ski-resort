@@ -123,8 +123,12 @@ def execute_sql_file(filepath, description):
         if 'schema' in filepath.name:
             config.pop('database', None)
         
-        connection = mysql.connector.connect(**config)
+        connection = mysql.connector.connect(**config, allow_local_infile=True)
         cursor = connection.cursor()
+        
+        # Consume any unread results
+        if connection.unread_result:
+            cursor.fetchall()
         
         # Split SQL content into individual statements with proper DELIMITER handling
         statements = []
@@ -183,12 +187,15 @@ def execute_sql_file(filepath, description):
         for statement in statements:
             if statement.strip():
                 try:
+                    # Execute and commit immediately for each statement
                     cursor.execute(statement)
-                    # Fetch any results to clear them
-                    try:
-                        cursor.fetchall()
-                    except:
+                    
+                    # Consume any unread results
+                    while cursor.nextset():
                         pass
+                    
+                    # Commit after each statement to avoid sync issues
+                    connection.commit()
                 except Error as e:
                     # Some statements might fail silently (like DROP IF EXISTS)
                     error_msg = str(e).lower()
@@ -198,9 +205,10 @@ def execute_sql_file(filepath, description):
                         'table' not in error_msg or 'doesn\'t exist' not in error_msg):
                         print_error(f"Error executing statement: {e}")
                         print_error(f"Statement: {statement[:100]}...")
+                        cursor.close()
+                        connection.close()
                         return False
         
-        connection.commit()
         cursor.close()
         connection.close()
         
