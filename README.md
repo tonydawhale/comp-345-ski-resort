@@ -6,13 +6,20 @@
 
 ## Table of Contents
 
-- [Ski Resort System](#ski-resort-system)
-  - [Table of Contents](#table-of-contents)
-  - [Overview](#overview)
-  - [System Requirements](#system-requirements)
-    - [Required Software](#required-software)
-  - [Quick Start](#quick-start)
-    - [Expected Output](#expected-output)
+* [Ski Resort System](https://www.google.com/search?q=%23ski-resort-system)
+* [Table of Contents](https://www.google.com/search?q=%23table-of-contents)
+* [Overview](https://www.google.com/search?q=%23overview)
+* [System Requirements](https://www.google.com/search?q=%23system-requirements)
+* [Quick Start](https://www.google.com/search?q=%23quick-start)
+* [Testing & Validation](https://www.google.com/search?q=%23testing--validation-08_transactionssql)
+* [How to Run the Tests](https://www.google.com/search?q=%231-how-to-run-the-tests)
+* [Test Coverage & Expected Results](https://www.google.com/search?q=%232-test-coverage--expected-results)
+* [Sample Output](https://www.google.com/search?q=%233-sample-output)
+* [ACID Compliance Rationale](https://www.google.com/search?q=%234-acid-compliance-rationale)
+
+
+
+
 
 ---
 
@@ -20,12 +27,12 @@
 
 This project implements a ski resort management system that handles:
 
-- **Ski Pass Management**: Issuing and tracking ski passes for visitors.
-- **Lift Operations**: Managing ski lift usage and maintenance.
-- **Resort Facilities**: Overseeing various resort amenities and services.
-- **User Management**: Handling user accounts and permissions.
-- **Reporting**: Generating reports on resort usage and performance.
-- **Database Integration**: Storing and retrieving data using a relational database.
+* **Ski Pass Management**: Issuing and tracking ski passes for visitors.
+* **Lift Operations**: Managing ski lift usage and maintenance.
+* **Resort Facilities**: Overseeing various resort amenities and services.
+* **User Management**: Handling user accounts and permissions.
+* **Reporting**: Generating reports on resort usage and performance.
+* **Database Integration**: Storing and retrieving data using a relational database.
 
 ---
 
@@ -33,20 +40,21 @@ This project implements a ski resort management system that handles:
 
 ### Required Software
 
-- **MySQL**: Version 8.0 or higher
-- **Python 3.8+**: For running scripts
-- **Git**: For version control
+* **MySQL**: Version 8.0 or higher
+* **Python 3.8+**: For running scripts
+* **Git**: For version control
 
 ## Quick Start
 
 After cloning the repository, follow these steps to set up the system:
+
 ```bash
 # 1. Setup Python Virtual Environment
 python3 -m venv env
 
 # 2. Activate Virtual Environment
 # On MacOS/Linux
-source env/bin/activate # OR
+source env/bin/activate 
 # On Windows
 .\env\Scripts\activate.bat
 
@@ -62,13 +70,14 @@ python3 scripts/load.py
 
 # 6. Verify installation
 mysql -u $MYSQL_USER -p$MYSQL_PASSWORD -e "SHOW TABLES IN ski_resort;"
+
 ```
 
 ### Expected Output
 
 After successful setup, you should see:
 
-```
+```text
 ✓ MySQL connection successful
 ✓ Database dropped (if it existed) - starting fresh
 ✓ Schema creation (tables, constraints) completed
@@ -77,98 +86,97 @@ After successful setup, you should see:
 
 Table                           Row Count
 ------------------------------------------
-Customers                              50
-Pass_Types                             10
-Instructors                            12
-Trails                                 15
-Lifts                                  12
-Lift_Access                            26
-Equipment                              41
-Lift_Tickets                           40
-Scheduled_Lessons                      15
-Rentals                                20
-Enrollments                            60
-Rental_Items                           77
-Maintenance_Staff                      15
-Lift_Maintenance_Logs                  12
-Equipment_Maintenance_Logs             15
-Trail_Maintenance_Logs                 15
+Customers                           50
+Pass_Types                          10
+Instructors                         12
+Trails                              15
+Lifts                               12
+Lift_Access                         26
+Equipment                           41
+Lift_Tickets                        40
+Scheduled_Lessons                   15
+Rentals                             20
+Enrollments                         60
+Rental_Items                        77
+Maintenance_Staff                   15
+Lift_Maintenance_Logs               12
+Equipment_Maintenance_Logs          15
+Trail_Maintenance_Logs              15
+
 ```
-
-Here is the documentation for your `README.md`. You can copy and paste this section directly into your project's documentation file.
-
-It covers the **Why** (ACID/Constraints), the **How** (Running the script), and the **What** (Interpreting results).
 
 ---
 
 ## 🧪 Testing & Validation (`08_transactions.sql`)
 
-To ensure data integrity and reliability, we have implemented a comprehensive transaction test script. This script verifies **ACID properties**, **Business Logic Triggers**, and **Database Constraints** by attempting both valid and invalid operations.
+To ensure data integrity and reliability, we have implemented an advanced transaction test suite using Stored Procedures. This script verifies **ACID properties**, **Isolation Levels**, and **Error Handling Patterns**.
 
 ### **1. How to Run the Tests**
 
-You can run the transaction tests directly using the MySQL command line tool.
-
-**Note:** We use the `-f` (force) flag because some tests are *designed to fail* (to prove our security constraints work). The flag allows the script to continue running after encountering these expected errors.
+Run the transaction tests directly using the MySQL command line tool.
 
 ```bash
 # Run from the project root directory
-mysql -u root -p -f ski_resort < sql/08_transactions.sql
+mysql -u root -p ski_resort < sql/08_transactions.sql
 
 ```
 
-*(If on macOS/Linux and `mysql` is not in your path, use `/usr/local/mysql/bin/mysql` or your specific installation path)*
+*(If on macOS/Linux and `mysql` is not in your path, use `/usr/local/mysql/bin/mysql`)*
 
 ### **2. Test Coverage & Expected Results**
 
-The script executes 5 distinct test scenarios. Below is the guide to interpreting the output.
+The script executes 4 advanced test scenarios involving Stored Procedures and Handlers.
 
 | Test Case | Feature Tested | Concept | Description | Expected Outcome |
 | --- | --- | --- | --- | --- |
-| **Test 1** | `trg_prevent_overbooking` | **Consistency** | Attempts to add an 11th student to a class capped at 10. | **FAIL** (Error 1644: Lesson is at maximum capacity) |
-| **Test 2** | `trg_after_enrollment...` | **Automation** | Enrolls and un-enrolls a student to verify the `CurrentEnrollment` counter updates automatically. | **PASS** (Counter toggles 0 → 1 → 0) |
-| **Test 3** | Equipment Rental | **Atomicity** | Processes a rental inside a `START TRANSACTION` block. Updates inventory status and inserts rental records simultaneously. | **PASS** (Equipment status changes to 'Rented') |
-| **Test 4** | Maintenance Safety | **Constraint** | Attempts to rent equipment that is flagged as 'Maintenance'. | **FAIL** (Error: Cannot rent equipment...) |
-| **Test 5** | Equipment Return | **Atomicity** | Returns a rental item. Trigger should automatically release the specific equipment back to 'Available'. | **PASS** (Equipment status returns to 'Available') |
+| **Test 1** | `trg_prevent_overbooking` | **Consistency** | Uses `DECLARE ... HANDLER` to catch the error when adding an 11th student to a 10-person class. | **PASS** (Prints "✅ SUCCESS: Overbooking blocked!") |
+| **Test 2** | `SERIALIZABLE` Isolation | **Isolation** | Sets isolation level to `SERIALIZABLE` to prevent phantom reads during capacity checks. | **PASS** (Enrollment counter increments correctly) |
+| **Test 3** | Full Rollback | **Atomicity** | Attempts a rental with one valid item and one broken item. The error handler performs a full `ROLLBACK`. | **PASS** (Prints "✅ SUCCESS: Transaction Rolled Back") |
+| **Test 4** | Savepoints | **Savepoints** | Uses a `SAVEPOINT` to partially rollback a failed helmet rental while keeping the successful ski rental. | **PASS** (Transaction commits with Skis only) |
 
 ### **3. Sample Output**
 
-When running the script, you will see output similar to this. Note that **ERROR messages are good** in Test 1 and Test 4—they prove the database is protecting itself.
+When running the script, you will see clean status messages instead of raw errors, proving that our Error Handlers are working correctly.
 
 ```text
-Test_Case
---- TEST 1: Prevent Lesson Overbooking (Trigger 1) ---
-ERROR 1644 (45000) at line 20: Error: Cannot enroll. Lesson is at maximum capacity.
-Verification
-Check if enrollment count stayed at 1 (Should be 1): 1
+Status
+=== INITIALIZING TEST SUITE ===
 
 Test_Case
---- TEST 2: Sync Enrollment Counts (Trigger 2) ---
-Expect 1
+--- TEST 1: Overbooking Protection (with Error Handler) ---
+Test_Result
+✅ SUCCESS: Overbooking blocked! Expected error caught.
+
+Test_Case
+--- TEST 2: Enrollment Counter & Isolation Levels ---
+Step 1: Initial Count (Expect 0)
+0
+Step 2: After Insert (Expect 1)
 1
-Expect 0
+
+Test_Case
+--- TEST 3: Atomicity - Full Rollback on Bad Data ---
+Test_Result
+✅ SUCCESS: Transaction Rolled Back due to broken item.
+Orphaned Rentals (Should be 0)
 0
 
 Test_Case
---- TEST 3: Equipment Rental Automation (Trigger 3) ---
-Expect Rented
-Rented
-
-Test_Case
---- TEST 4: Block Bad Rentals (Trigger 3 Safety) ---
-Expect 0
-0
-
-Test_Case
---- TEST 5: Auto-Return Equipment (Trigger 4) ---
-After Return (Available)
-Available
+--- TEST 4: Savepoints - Partial Rollback ---
+Log
+ℹ️ Info: Helmet unavailable, rolling back to savepoint...
+Test_Result
+✅ Transaction Committed with Skis only.
+ItemCount
+1
+Status
+--- ALL TESTS COMPLETED ---
 
 ```
 
 ### **4. ACID Compliance Rationale**
 
-* **Atomicity:** demonstrated in **Test 3**, where inventory updates and rental record creation are wrapped in a single transaction. If one fails, both fail.
-* **Consistency:** demonstrated in **Test 1**, where the database refuses to enter an invalid state (overbooked class) effectively enforcing the business rule.
-* **Isolation:** implicit in the use of `START TRANSACTION`. Intermediate states (like a rental being processed) are not visible to other queries until `COMMIT` is executed.
-* **Durability:** ensured by the database engine (InnoDB) defaults; once Test 3 confirms 'Rented', that state persists even in the event of a system crash.
+* **Atomicity:** Demonstrated in **Test 3**, where a failure in one part of the transaction (broken item) triggers a `ROLLBACK` of the entire order, including the parent rental record.
+* **Consistency:** Demonstrated in **Test 1**, where business rules (Capacity limits) are enforced by Triggers and safely caught by Stored Procedure handlers.
+* **Isolation:** Demonstrated in **Test 2**, by explicitly setting `SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE` to ensure data integrity during high-concurrency read/write operations.
+* **Durability:** Ensured by the database engine (InnoDB) defaults; committed transactions (like the Skis in Test 4) persist even after the partial rollback of the Helmet.
